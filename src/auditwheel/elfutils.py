@@ -31,7 +31,7 @@ def elf_file_filter(paths: Iterator[str]) -> Iterator[tuple[str, ELFFile]]:
     """
 
     for path in paths:
-        if path.endswith(".py"):
+        if path.endswith(".py") or path.endswith(".dgp"):
             continue
         else:
             try:
