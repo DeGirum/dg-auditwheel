@@ -5,31 +5,31 @@ from unittest.mock import call, patch
 
 import pytest
 
-from auditwheel.patcher import Patchelf
+from dg_auditwheel.patcher import Patchelf
 
 
-@patch("auditwheel.patcher.find_executable")
+@patch("dg_auditwheel.patcher.find_executable")
 def test_patchelf_unavailable(find_executable):
     find_executable.return_value = False
     with pytest.raises(ValueError):
         Patchelf()
 
 
-@patch("auditwheel.patcher.check_output")
+@patch("dg_auditwheel.patcher.check_output")
 def test_patchelf_check_output_fail(check_output):
     check_output.side_effect = CalledProcessError(1, "patchelf --version")
     with pytest.raises(ValueError, match="Could not call"):
         Patchelf()
 
 
-@patch("auditwheel.patcher.check_output")
+@patch("dg_auditwheel.patcher.check_output")
 @pytest.mark.parametrize("version", ["0.14", "0.14.1", "0.15"])
 def test_patchelf_version_check(check_output, version):
     check_output.return_value.decode.return_value = f"patchelf {version}"
     Patchelf()
 
 
-@patch("auditwheel.patcher.check_output")
+@patch("dg_auditwheel.patcher.check_output")
 @pytest.mark.parametrize("version", ["0.13.99", "0.13", "0.9", "0.1"])
 def test_patchelf_version_check_fail(check_output, version):
     check_output.return_value.decode.return_value = f"patchelf {version}"
@@ -37,9 +37,9 @@ def test_patchelf_version_check_fail(check_output, version):
         Patchelf()
 
 
-@patch("auditwheel.patcher._verify_patchelf")
-@patch("auditwheel.patcher.check_output")
-@patch("auditwheel.patcher.check_call")
+@patch("dg_auditwheel.patcher._verify_patchelf")
+@patch("dg_auditwheel.patcher.check_output")
+@patch("dg_auditwheel.patcher.check_call")
 class TestPatchElf:
     """ "Validate that patchelf is invoked with the correct arguments."""
 

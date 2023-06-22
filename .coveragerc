@@ -4,8 +4,8 @@ omit=
 
 [paths]
 source =
-    src/auditwheel/
-    /auditwheel_src/src/auditwheel
+    src/dg_auditwheel/
+    /dg_auditwheel_src/src/dg_auditwheel
 
 [report]
 exclude_lines =

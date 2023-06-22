@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from auditwheel.condatools import InCondaPkg, InCondaPkgCtx
+from dg_auditwheel.condatools import InCondaPkg, InCondaPkgCtx
 
 
-@patch("auditwheel.condatools.tarbz2todir")
+@patch("dg_auditwheel.condatools.tarbz2todir")
 def test_in_condapkg(tarbz2todir_mock):
     with InCondaPkg("/fakepath"):
         assert True
 
 
-@patch("auditwheel.condatools.tarbz2todir")
-@patch("auditwheel.condatools.open")
+@patch("dg_auditwheel.condatools.tarbz2todir")
+@patch("dg_auditwheel.condatools.open")
 def test_in_condapkg_context(open_mock, tarbz2todir_mock):
     with InCondaPkgCtx("/fakepath") as conda_pkg:
         file_mock = Mock()

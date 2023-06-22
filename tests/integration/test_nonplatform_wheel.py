@@ -12,7 +12,7 @@ HERE = pathlib.Path(__file__).parent.resolve()
 def test_non_platform_wheel_repair(mode):
     wheel = HERE / "plumbum-1.6.8-py2.py3-none-any.whl"
     proc = subprocess.run(
-        ["auditwheel", mode, str(wheel)],
+        ["dg_auditwheel", mode, str(wheel)],
         stderr=subprocess.PIPE,
         text=True,
     )

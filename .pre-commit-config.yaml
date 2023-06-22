@@ -4,7 +4,7 @@
 default_language_version:
   python: python3.8
 
-exclude: ^src/auditwheel/_vendor/
+exclude: ^src/dg_auditwheel/_vendor/
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks

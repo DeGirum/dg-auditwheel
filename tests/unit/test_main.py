@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from auditwheel.main import main
+from dg_auditwheel.main import main
 
 on_supported_platform = pytest.mark.skipif(
     sys.platform != "linux", reason="requires Linux system"
@@ -25,7 +25,7 @@ def test_unsupported_platform(monkeypatch):
 @on_supported_platform
 def test_help(monkeypatch, capsys):
     # GIVEN
-    monkeypatch.setattr(sys, "argv", ["auditwheel"])
+    monkeypatch.setattr(sys, "argv", ["dg_auditwheel"])
 
     # WHEN
     retval = main()
@@ -33,4 +33,4 @@ def test_help(monkeypatch, capsys):
     # THEN
     assert retval is None
     captured = capsys.readouterr()
-    assert "usage: auditwheel [-h] [-V] [-v] command ..." in captured.out
+    assert "usage: dg_auditwheel [-h] [-V] [-v] command ..." in captured.out

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from auditwheel.policy import (
+from dg_auditwheel.policy import (
     _validate_pep600_compliance,
     get_arch_name,
     get_policy_name,
@@ -14,8 +14,8 @@ from auditwheel.policy import (
 )
 
 
-@patch("auditwheel.policy._platform_module.machine")
-@patch("auditwheel.policy.bits", 32)
+@patch("dg_auditwheel.policy._platform_module.machine")
+@patch("dg_auditwheel.policy.bits", 32)
 @pytest.mark.parametrize(
     "reported_arch,expected_arch",
     [
@@ -33,8 +33,8 @@ def test_32bits_arch_name(machine_mock, reported_arch, expected_arch):
     assert machine == expected_arch
 
 
-@patch("auditwheel.policy._platform_module.machine")
-@patch("auditwheel.policy.bits", 64)
+@patch("dg_auditwheel.policy._platform_module.machine")
+@patch("dg_auditwheel.policy.bits", 64)
 @pytest.mark.parametrize(
     "reported_arch,expected_arch",
     [
@@ -168,7 +168,7 @@ class TestPolicyAccess:
         assert get_policy_name(101) is None
 
     @patch(
-        "auditwheel.policy._POLICIES",
+        "dg_auditwheel.policy._POLICIES",
         [
             {"name": "duplicate", "priority": 0},
             {"name": "duplicate", "priority": 0},
@@ -194,7 +194,7 @@ class TestPolicyAccess:
         assert get_priority_by_name("nosuchpolicy") is None
 
     @patch(
-        "auditwheel.policy._POLICIES",
+        "dg_auditwheel.policy._POLICIES",
         [
             {"name": "duplicate", "priority": 0},
             {"name": "duplicate", "priority": 0},

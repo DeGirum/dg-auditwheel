@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from auditwheel.tmpdirs import InGivenDirectory, InTemporaryDirectory
+from dg_auditwheel.tmpdirs import InGivenDirectory, InTemporaryDirectory
 
 
 def test_intemporarydirectory():

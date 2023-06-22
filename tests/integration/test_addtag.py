@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock
 
-from auditwheel.main_addtag import execute
+from dg_auditwheel.main_addtag import execute
 
 HERE = Path(__file__).parent.resolve()
 

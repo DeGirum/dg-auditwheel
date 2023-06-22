@@ -5,7 +5,7 @@ import os
 import pretend
 import pytest
 
-from auditwheel import wheel_abi
+from dg_auditwheel import wheel_abi
 
 
 class TestGetWheelElfdata:

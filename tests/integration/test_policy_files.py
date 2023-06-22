@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from jsonschema import validate
 
-from auditwheel.policy import (
+from dg_auditwheel.policy import (
     POLICY_PRIORITY_HIGHEST,
     POLICY_PRIORITY_LOWEST,
     _load_policy_schema,

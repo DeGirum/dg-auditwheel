@@ -47,7 +47,7 @@ else:
     POLICY_ALIASES = {
         "manylinux_2_17": ["manylinux2014"],
     }
-DOCKER_CONTAINER_NAME = "auditwheel-test-anylinux"
+DOCKER_CONTAINER_NAME = "dg_auditwheel-test-anylinux"
 PYTHON_MAJ_MIN = [str(i) for i in sys.version_info[:2]]
 PYTHON_ABI_MAJ_MIN = "".join(PYTHON_MAJ_MIN)
 PYTHON_ABI_FLAGS = "m" if sys.version_info.minor < 8 else ""
@@ -179,7 +179,7 @@ def tmp_docker_image(base, commands, setup_env={}):
 
 
 def assert_show_output(manylinux_ctr, wheel, expected_tag, strict):
-    output = docker_exec(manylinux_ctr, f"auditwheel show /io/{wheel}")
+    output = docker_exec(manylinux_ctr, f"dg_auditwheel show /io/{wheel}")
     output = output.replace("\n", " ")
     match = SHOW_RE.match(output)
     assert match
@@ -271,7 +271,7 @@ class Anylinux:
 
         # Repair the wheel using the manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
         )
         docker_exec(manylinux_ctr, repair_command)
         filenames = os.listdir(io_folder)
@@ -326,7 +326,7 @@ class Anylinux:
         }[policy]
 
         repair_command = [
-            "auditwheel",
+            "dg_auditwheel",
             "repair",
             "--plat",
             policy,
@@ -379,7 +379,7 @@ class Anylinux:
 
         # Repair the wheel using the appropriate manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
         )
         docker_exec(manylinux_ctr, repair_command)
         filenames = os.listdir(io_folder)
@@ -419,12 +419,12 @@ class Anylinux:
         assert "manylinux" not in orig_wheel
 
         # Repair the wheel using the manylinux container
-        repair_command = f"auditwheel repair --plat {policy} -w /io /io/{orig_wheel}"
+        repair_command = f"dg_auditwheel repair --plat {policy} -w /io /io/{orig_wheel}"
         output = docker_exec(manylinux_ctr, repair_command, expected_retcode=1)
         assert "This does not look like a platform wheel" in output
 
         output = docker_exec(
-            manylinux_ctr, f"auditwheel show /io/{orig_wheel}", expected_retcode=1
+            manylinux_ctr, f"dg_auditwheel show /io/{orig_wheel}", expected_retcode=1
         )
         assert "This does not look like a platform wheel" in output
 
@@ -467,7 +467,7 @@ class Anylinux:
 
         # Repair the wheel using the appropriate manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
         )
         docker_exec(
             manylinux_ctr,
@@ -546,7 +546,7 @@ class Anylinux:
 
         # Repair the wheel using the appropriate manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
         )
         docker_exec(
             manylinux_ctr,
@@ -614,7 +614,7 @@ class Anylinux:
 
         # Repair the wheel using the appropriate manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
         )
         docker_exec(
             manylinux_ctr,
@@ -674,7 +674,7 @@ class Anylinux:
 
         # Repair the wheel using the appropriate manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --strip -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --strip -w /io /io/{orig_wheel}"
         )
         docker_exec(manylinux_ctr, repair_command)
 
@@ -712,7 +712,7 @@ class Anylinux:
 
         # Repair the wheel using the appropriate manylinux container
         repair_command = (
-            f"auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
+            f"dg_auditwheel repair --plat {policy} --only-plat -w /io /io/{orig_wheel}"
         )
         docker_exec(manylinux_ctr, ["bash", "-c", repair_command])
         filenames = os.listdir(io_folder)
@@ -750,7 +750,7 @@ class Anylinux:
         assert orig_wheel.startswith("testentropy-0.0.1")
 
         # Repair the wheel using the appropriate manylinux container
-        repair_command = f"auditwheel repair --plat {policy} -w /io /io/{orig_wheel}"
+        repair_command = f"dg_auditwheel repair --plat {policy} -w /io /io/{orig_wheel}"
         if policy.startswith("manylinux_2_28_"):
             with pytest.raises(CalledProcessError):
                 docker_exec(manylinux_ctr, repair_command)
@@ -847,7 +847,7 @@ class TestManylinux(Anylinux):
         repair_command = (
             "LD_LIBRARY_PATH="
             "/auditwheel_src/tests/integration/testdependencies:$LD_LIBRARY_PATH "
-            "auditwheel -v repair --plat {policy} -w /io /io/{orig_wheel}"
+            "dg_auditwheel -v repair --plat {policy} -w /io /io/{orig_wheel}"
         )
 
         policy_priority = get_priority_by_name(policy)
@@ -954,7 +954,7 @@ class TestManylinux(Anylinux):
             [
                 "bash",
                 "-c",
-                f"auditwheel -v repair --plat {target_policy} {only_plat_arg} -w /io"
+                f"dg_auditwheel -v repair --plat {target_policy} {only_plat_arg} -w /io"
                 f" /io/{orig_wheel}",
             ],
         )
@@ -997,12 +997,12 @@ class TestManylinux(Anylinux):
         assert orig_wheel.startswith("testzlib-0.0.1")
 
         # Repair the wheel using the appropriate manylinux container
-        repair_command = f"auditwheel repair --plat {policy} -w /io /io/{orig_wheel}"
+        repair_command = f"dg_auditwheel repair --plat {policy} -w /io /io/{orig_wheel}"
         with pytest.raises(CalledProcessError):
             docker_exec(manylinux_ctr, repair_command)
 
         # Check auditwheel show warns about the black listed symbols
-        output = docker_exec(manylinux_ctr, f"auditwheel -v show /io/{orig_wheel}")
+        output = docker_exec(manylinux_ctr, f"dg_auditwheel -v show /io/{orig_wheel}")
         assert "black-listed symbol dependencies" in output.replace("\n", " ")
 
 

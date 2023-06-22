@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 from elftools.common.exceptions import ELFError
 
-from auditwheel.elfutils import (
+from dg_auditwheel.elfutils import (
     elf_file_filter,
     elf_find_ucs2_symbols,
     elf_find_versioned_symbols,
@@ -26,8 +26,8 @@ class MockSymbol(dict):
         return self._name
 
 
-@patch("auditwheel.elfutils.open")
-@patch("auditwheel.elfutils.ELFFile")
+@patch("dg_auditwheel.elfutils.open")
+@patch("dg_auditwheel.elfutils.ELFFile")
 class TestElfReadDt:
     def test_missing_section(self, elffile_mock, open_mock):
         # GIVEN
@@ -59,8 +59,8 @@ class TestElfReadDt:
         assert "libfoo.so" in needed
 
 
-@patch("auditwheel.elfutils.open")
-@patch("auditwheel.elfutils.ELFFile")
+@patch("dg_auditwheel.elfutils.open")
+@patch("dg_auditwheel.elfutils.ELFFile")
 class TestElfFileFilter:
     def test_filter(self, elffile_mock, open_mock):
         result = elf_file_filter(["file1.so", "file2.so"])

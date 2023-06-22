@@ -12,8 +12,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from auditwheel import main_repair
-from auditwheel.wheel_abi import analyze_wheel_abi
+from dg_auditwheel import main_repair
+from dg_auditwheel.wheel_abi import analyze_wheel_abi
 
 HERE = Path(__file__).parent.resolve()
 
@@ -72,13 +72,13 @@ def test_wheel_source_date_epoch(tmp_path, monkeypatch):
         EXCLUDE=[],
         cmd="repair",
         func=Mock(),
-        prog="auditwheel",
+        prog="dg_auditwheel",
         verbose=1,
     )
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "650203200")
     # patchelf might not be available as we aren't running in a manylinux container
     # here. We don't need need it in this test, so just patch it.
-    with mock.patch("auditwheel.patcher._verify_patchelf"):
+    with mock.patch("dg_auditwheel.patcher._verify_patchelf"):
         main_repair.execute(args, Mock())
 
     output_wheel, *_ = list(wheel_output_path.glob("*.whl"))

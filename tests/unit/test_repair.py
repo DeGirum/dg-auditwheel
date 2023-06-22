@@ -3,13 +3,13 @@ from __future__ import annotations
 import os
 from unittest.mock import call, patch
 
-from auditwheel.patcher import Patchelf
-from auditwheel.repair import append_rpath_within_wheel
+from dg_auditwheel.patcher import Patchelf
+from dg_auditwheel.repair import append_rpath_within_wheel
 
 
-@patch("auditwheel.patcher._verify_patchelf")
-@patch("auditwheel.patcher.check_output")
-@patch("auditwheel.patcher.check_call")
+@patch("dg_auditwheel.patcher._verify_patchelf")
+@patch("dg_auditwheel.patcher.check_output")
+@patch("dg_auditwheel.patcher.check_call")
 class TestRepair:
     def test_append_rpath(self, check_call, check_output, _):
         patcher = Patchelf()
