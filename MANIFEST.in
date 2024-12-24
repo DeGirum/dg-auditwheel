@@ -1,8 +1,8 @@
 include README.rst
 include LICENSE
 include CHANGELOG.md
-include src/auditwheel/policy/*.json
-include src/auditwheel/_vendor/wheel/LICENSE.txt
+include src/dg_auditwheel/policy/*.json
+include src/dg_auditwheel/_vendor/wheel/LICENSE.txt
 
 graft tests
 

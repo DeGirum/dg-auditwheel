@@ -7,12 +7,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 target-version = ["py38", "py39", "py310", "py311", "py312", "py313"]
-extend-exclude = "src/auditwheel/_vendor"
+extend-exclude = "src/dg_auditwheel/_vendor"
 
 [tool.isort]
 py_version = 38
 profile = "black"
-extend_skip_glob = "src/auditwheel/_vendor/**/*.py"
+extend_skip_glob = "src/dg_auditwheel/_vendor/**/*.py"
 
 [tool.mypy]
 follow_imports = "silent"
@@ -20,6 +20,6 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = "auditwheel._vendor.*"
+module = "dg_auditwheel._vendor.*"
 follow_imports = "skip"
 ignore_errors = true
