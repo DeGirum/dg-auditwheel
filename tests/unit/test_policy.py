@@ -1,21 +1,39 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+import platform
+import re
+import struct
+import sys
+from contextlib import nullcontext as does_not_raise
 
 import pytest
 
+from auditwheel.error import InvalidLibc
+from auditwheel.libc import Libc
 from auditwheel.policy import (
+    WheelPolicies,
     _validate_pep600_compliance,
     get_arch_name,
-    get_policy_name,
-    get_priority_by_name,
+    get_libc,
     get_replace_platforms,
-    lddtree_external_references,
 )
 
 
-@patch("auditwheel.policy._platform_module.machine")
-@patch("auditwheel.policy.bits", 32)
+def ids(x):
+    if isinstance(x, Libc):
+        return x.name
+    if isinstance(x, does_not_raise):
+        return "NoError"
+    if hasattr(x, "expected_exception"):
+        return x.expected_exception
+
+
+def raises(exception, match=None, escape=True):
+    if escape and match is not None:
+        match = re.escape(match)
+    return pytest.raises(exception, match=match)
+
+
 @pytest.mark.parametrize(
     "reported_arch,expected_arch",
     [
@@ -27,14 +45,12 @@ from auditwheel.policy import (
         ("x86_64", "i686"),
     ],
 )
-def test_32bits_arch_name(machine_mock, reported_arch, expected_arch):
-    machine_mock.return_value = reported_arch
-    machine = get_arch_name()
+def test_32bits_arch_name(reported_arch, expected_arch, monkeypatch):
+    monkeypatch.setattr(platform, "machine", lambda: reported_arch)
+    machine = get_arch_name(bits=32)
     assert machine == expected_arch
 
 
-@patch("auditwheel.policy._platform_module.machine")
-@patch("auditwheel.policy.bits", 64)
 @pytest.mark.parametrize(
     "reported_arch,expected_arch",
     [
@@ -45,10 +61,33 @@ def test_32bits_arch_name(machine_mock, reported_arch, expected_arch):
         ("x86_64", "x86_64"),
     ],
 )
-def test_64bits_arch_name(machine_mock, reported_arch, expected_arch):
-    machine_mock.return_value = reported_arch
-    machine = get_arch_name()
+def test_64bits_arch_name(reported_arch, expected_arch, monkeypatch):
+    monkeypatch.setattr(platform, "machine", lambda: reported_arch)
+    machine = get_arch_name(bits=64)
     assert machine == expected_arch
+
+
+@pytest.mark.parametrize(
+    "maxsize, sizeof_voidp, expected",
+    [
+        # 64-bit
+        (9223372036854775807, 8, "x86_64"),
+        # 32-bit
+        (2147483647, 4, "i686"),
+        # 64-bit w/ 32-bit sys.maxsize: GraalPy, IronPython, Jython
+        (2147483647, 8, "x86_64"),
+    ],
+)
+def test_arch_name_bits(maxsize, sizeof_voidp, expected, monkeypatch):
+    def _calcsize(fmt):
+        assert fmt == "P"
+        return sizeof_voidp
+
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(sys, "maxsize", maxsize)
+    monkeypatch.setattr(struct, "calcsize", _calcsize)
+    machine = get_arch_name()
+    assert machine == expected
 
 
 @pytest.mark.parametrize(
@@ -156,53 +195,53 @@ def test_pep600_compliance():
 class TestPolicyAccess:
     def test_get_by_priority(self):
         _arch = get_arch_name()
-        assert get_policy_name(65) == f"manylinux_2_27_{_arch}"
-        assert get_policy_name(70) == f"manylinux_2_24_{_arch}"
-        assert get_policy_name(80) == f"manylinux_2_17_{_arch}"
+        wheel_policy = WheelPolicies()
+        assert wheel_policy.get_policy_name(65) == f"manylinux_2_27_{_arch}"
+        assert wheel_policy.get_policy_name(70) == f"manylinux_2_24_{_arch}"
+        assert wheel_policy.get_policy_name(80) == f"manylinux_2_17_{_arch}"
         if _arch in {"x86_64", "i686"}:
-            assert get_policy_name(90) == f"manylinux_2_12_{_arch}"
-            assert get_policy_name(100) == f"manylinux_2_5_{_arch}"
-        assert get_policy_name(0) == f"linux_{_arch}"
+            assert wheel_policy.get_policy_name(90) == f"manylinux_2_12_{_arch}"
+            assert wheel_policy.get_policy_name(100) == f"manylinux_2_5_{_arch}"
+        assert wheel_policy.get_policy_name(0) == f"linux_{_arch}"
 
     def test_get_by_priority_missing(self):
-        assert get_policy_name(101) is None
+        wheel_policy = WheelPolicies()
+        assert wheel_policy.get_policy_name(101) is None
 
-    @patch(
-        "auditwheel.policy._POLICIES",
-        [
-            {"name": "duplicate", "priority": 0},
-            {"name": "duplicate", "priority": 0},
-        ],
-    )
     def test_get_by_priority_duplicate(self):
+        wheel_policy = WheelPolicies()
+        wheel_policy._policies = [
+            {"name": "duplicate", "priority": 0},
+            {"name": "duplicate", "priority": 0},
+        ]
         with pytest.raises(RuntimeError):
-            get_policy_name(0)
+            wheel_policy.get_policy_name(0)
 
     def test_get_by_name(self):
         _arch = get_arch_name()
-        assert get_priority_by_name(f"manylinux_2_27_{_arch}") == 65
-        assert get_priority_by_name(f"manylinux_2_24_{_arch}") == 70
-        assert get_priority_by_name(f"manylinux2014_{_arch}") == 80
-        assert get_priority_by_name(f"manylinux_2_17_{_arch}") == 80
+        wheel_policy = WheelPolicies()
+        assert wheel_policy.get_priority_by_name(f"manylinux_2_27_{_arch}") == 65
+        assert wheel_policy.get_priority_by_name(f"manylinux_2_24_{_arch}") == 70
+        assert wheel_policy.get_priority_by_name(f"manylinux2014_{_arch}") == 80
+        assert wheel_policy.get_priority_by_name(f"manylinux_2_17_{_arch}") == 80
         if _arch in {"x86_64", "i686"}:
-            assert get_priority_by_name(f"manylinux2010_{_arch}") == 90
-            assert get_priority_by_name(f"manylinux_2_12_{_arch}") == 90
-            assert get_priority_by_name(f"manylinux1_{_arch}") == 100
-            assert get_priority_by_name(f"manylinux_2_5_{_arch}") == 100
+            assert wheel_policy.get_priority_by_name(f"manylinux2010_{_arch}") == 90
+            assert wheel_policy.get_priority_by_name(f"manylinux_2_12_{_arch}") == 90
+            assert wheel_policy.get_priority_by_name(f"manylinux1_{_arch}") == 100
+            assert wheel_policy.get_priority_by_name(f"manylinux_2_5_{_arch}") == 100
 
     def test_get_by_name_missing(self):
-        assert get_priority_by_name("nosuchpolicy") is None
+        wheel_policy = WheelPolicies()
+        assert wheel_policy.get_priority_by_name("nosuchpolicy") is None
 
-    @patch(
-        "auditwheel.policy._POLICIES",
-        [
-            {"name": "duplicate", "priority": 0},
-            {"name": "duplicate", "priority": 0},
-        ],
-    )
     def test_get_by_name_duplicate(self):
+        wheel_policy = WheelPolicies()
+        wheel_policy._policies = [
+            {"name": "duplicate", "priority": 0},
+            {"name": "duplicate", "priority": 0},
+        ]
         with pytest.raises(RuntimeError):
-            get_priority_by_name("duplicate")
+            wheel_policy.get_priority_by_name("duplicate")
 
 
 class TestLddTreeExternalReferences:
@@ -227,8 +266,51 @@ class TestLddTreeExternalReferences:
             "needed": libs,
             "libs": {lib: {"needed": [], "realpath": "/path/to/lib"} for lib in libs},
         }
-        full_external_refs = lddtree_external_references(lddtree, "/path/to/wheel")
+        wheel_policy = WheelPolicies()
+        full_external_refs = wheel_policy.lddtree_external_references(
+            lddtree, "/path/to/wheel"
+        )
 
         # Assert that each policy only has the unfiltered libs.
         for policy in full_external_refs:
             assert set(full_external_refs[policy]["libs"]) == set(unfiltered_libs)
+
+
+@pytest.mark.parametrize(
+    "libc,musl_policy,arch,exception",
+    [
+        # valid
+        (None, None, None, does_not_raise()),
+        (Libc.GLIBC, None, None, does_not_raise()),
+        (Libc.MUSL, "musllinux_1_1", None, does_not_raise()),
+        (None, "musllinux_1_1", None, does_not_raise()),
+        (None, None, "aarch64", does_not_raise()),
+        # invalid
+        (
+            Libc.GLIBC,
+            "musllinux_1_1",
+            None,
+            raises(ValueError, "'musl_policy' shall be None"),
+        ),
+        (Libc.MUSL, "manylinux_1_1", None, raises(ValueError, "Invalid 'musl_policy'")),
+        (Libc.MUSL, "musllinux_5_1", None, raises(AssertionError)),
+        (Libc.MUSL, "musllinux_1_1", "foo", raises(AssertionError)),
+        # platform dependant
+        (
+            Libc.MUSL,
+            None,
+            None,
+            does_not_raise() if get_libc() == Libc.MUSL else raises(InvalidLibc),
+        ),
+    ],
+    ids=ids,
+)
+def test_wheel_policies_args(libc, musl_policy, arch, exception):
+    with exception:
+        wheel_policies = WheelPolicies(libc=libc, musl_policy=musl_policy, arch=arch)
+        if libc is not None:
+            assert wheel_policies._libc_variant == libc
+        if musl_policy is not None:
+            assert wheel_policies._musl_policy == musl_policy
+        if arch is not None:
+            assert wheel_policies._arch_name == arch

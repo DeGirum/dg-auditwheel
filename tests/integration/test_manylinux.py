@@ -16,10 +16,9 @@ import docker
 import pytest
 from elftools.elf.elffile import ELFFile
 
-from auditwheel.policy import get_arch_name, get_priority_by_name
+from auditwheel.policy import WheelPolicies, get_arch_name
 
 logger = logging.getLogger(__name__)
-
 
 ENCODING = "utf-8"
 PLATFORM = get_arch_name()
@@ -52,11 +51,14 @@ PYTHON_MAJ_MIN = [str(i) for i in sys.version_info[:2]]
 PYTHON_ABI_MAJ_MIN = "".join(PYTHON_MAJ_MIN)
 PYTHON_ABI_FLAGS = "m" if sys.version_info.minor < 8 else ""
 PYTHON_ABI = f"cp{PYTHON_ABI_MAJ_MIN}-cp{PYTHON_ABI_MAJ_MIN}{PYTHON_ABI_FLAGS}"
-MANYLINUX_PYTHON_IMAGE_ID = f'python:{".".join(PYTHON_MAJ_MIN)}-slim'
+PYTHON_IMAGE_TAG = ".".join(PYTHON_MAJ_MIN) + (
+    "-rc" if PYTHON_MAJ_MIN == ["3", "13"] else ""
+)
+MANYLINUX_PYTHON_IMAGE_ID = f"python:{PYTHON_IMAGE_TAG}-slim-bullseye"
 MUSLLINUX_IMAGES = {
     "musllinux_1_1": f"quay.io/pypa/musllinux_1_1_{PLATFORM}:latest",
 }
-MUSLLINUX_PYTHON_IMAGE_ID = f'python:{".".join(PYTHON_MAJ_MIN)}-alpine'
+MUSLLINUX_PYTHON_IMAGE_ID = f"python:{PYTHON_IMAGE_TAG}-alpine"
 DEVTOOLSET = {
     "manylinux_2_5": "devtoolset-2",
     "manylinux_2_12": "devtoolset-8",
@@ -77,15 +79,15 @@ PATH_DIRS = [
 PATH = {k: ":".join(PATH_DIRS).format(devtoolset=v) for k, v in DEVTOOLSET.items()}
 WHEEL_CACHE_FOLDER = op.expanduser("~/.cache/auditwheel_tests")
 NUMPY_VERSION_MAP = {
-    "37": "1.19.2",
-    "38": "1.19.2",
-    "39": "1.19.2",
+    "38": "1.21.4",
+    "39": "1.21.4",
     "310": "1.21.4",
     "311": "1.23.4",
+    "312": "1.26.0",
+    "313": "2.0.1",
 }
 NUMPY_VERSION = NUMPY_VERSION_MAP[PYTHON_ABI_MAJ_MIN]
 ORIGINAL_NUMPY_WHEEL = f"numpy-{NUMPY_VERSION}-{PYTHON_ABI}-linux_{PLATFORM}.whl"
-ORIGINAL_SIX_WHEEL = "six-1.11.0-py2.py3-none-any.whl"
 SHOW_RE = re.compile(
     r'[\s](?P<wheel>\S+) is consistent with the following platform tag: "(?P<tag>\S+)"',
     flags=re.DOTALL,
@@ -172,7 +174,7 @@ def tmp_docker_image(base, commands, setup_env={}):
 
     logger.info("Made image %s based on %s", image.short_id, base)
     try:
-        yield image.short_id
+        yield image.id
     finally:
         client = image.client
         client.images.remove(image.id)
@@ -203,7 +205,11 @@ def build_numpy(container, policy, output_dir):
 
     if policy.startswith("musllinux_"):
         docker_exec(container, "apk add openblas-dev")
+    elif policy.startswith("manylinux_2_28_"):
+        docker_exec(container, "dnf install -y openblas-devel")
     else:
+        if tuple(int(part) for part in NUMPY_VERSION.split(".")[:2]) >= (1, 26):
+            pytest.skip("numpy>=1.26 requires openblas")
         docker_exec(container, "yum install -y atlas atlas-devel")
 
     if op.exists(op.join(WHEEL_CACHE_FOLDER, policy, ORIGINAL_NUMPY_WHEEL)):
@@ -220,7 +226,7 @@ def build_numpy(container, policy, output_dir):
 
         docker_exec(
             container,
-            f"pip wheel -w /io --no-binary=:all: numpy=={NUMPY_VERSION}",
+            f"pip wheel -w /io --no-binary=numpy numpy=={NUMPY_VERSION}",
         )
         os.makedirs(op.join(WHEEL_CACHE_FOLDER, policy), exist_ok=True)
         shutil.copy2(
@@ -264,7 +270,7 @@ class Anylinux:
         policy, tag, manylinux_ctr = any_manylinux_container
 
         # First build numpy from source as a naive linux wheel that is tied
-        # to system libraries (atlas, libgfortran...)
+        # to system libraries (blas, libgfortran...)
         orig_wheel = build_numpy(manylinux_ctr, policy, io_folder)
         assert orig_wheel == ORIGINAL_NUMPY_WHEEL
         assert "manylinux" not in orig_wheel
@@ -295,6 +301,8 @@ class Anylinux:
         else:
             docker_exec(docker_python, "apt-get update -yqq")
             docker_exec(docker_python, "apt-get install -y gfortran")
+        if tuple(int(part) for part in NUMPY_VERSION.split(".")[:2]) >= (1, 26):
+            docker_exec(docker_python, "pip install meson ninja")
         docker_exec(
             docker_python,
             "python -m numpy.f2py -c /auditwheel_src/tests/integration/foo.f90 -m foo",
@@ -304,51 +312,44 @@ class Anylinux:
         # at once in the same Python program:
         docker_exec(docker_python, ["python", "-c", "'import numpy; import foo'"])
 
-    @pytest.mark.skipif(
-        PLATFORM != "x86_64", reason="Only needs checking on one platform"
-    )
     def test_repair_exclude(self, any_manylinux_container, io_folder):
         """Test the --exclude argument to avoid grafting certain libraries."""
 
         policy, tag, manylinux_ctr = any_manylinux_container
 
-        orig_wheel = build_numpy(manylinux_ctr, policy, io_folder)
-        assert orig_wheel == ORIGINAL_NUMPY_WHEEL
+        test_path = "/auditwheel_src/tests/integration/testrpath"
+        build_cmd = (
+            f"cd {test_path} && "
+            "if [ -d ./build ]; then rm -rf ./build ./*.egg-info; fi && "
+            "python -m pip wheel --no-deps -w /io ."
+        )
+        docker_exec(manylinux_ctr, ["bash", "-c", build_cmd])
+        filenames = os.listdir(io_folder)
+        assert filenames == [f"testrpath-0.0.1-{PYTHON_ABI}-linux_{PLATFORM}.whl"]
+        orig_wheel = filenames[0]
         assert "manylinux" not in orig_wheel
 
-        # Exclude libgfortran from grafting into the wheel
-        excludes = {
-            "manylinux_2_5_x86_64": ["libgfortran.so.1", "libgfortran.so.3"],
-            "manylinux_2_12_x86_64": ["libgfortran.so.3", "libgfortran.so.5"],
-            "manylinux_2_17_x86_64": ["libgfortran.so.3", "libgfortran.so.5"],
-            "manylinux_2_28_x86_64": ["libgfortran.so.5"],
-            "musllinux_1_1_x86_64": ["libgfortran.so.5"],
-        }[policy]
-
         repair_command = [
+            f"LD_LIBRARY_PATH={test_path}/a:$LD_LIBRARY_PATH",
             "auditwheel",
             "repair",
-            "--plat",
-            policy,
+            f"--plat={policy}",
             "--only-plat",
             "-w",
             "/io",
+            "--exclude=liba.so",
+            f"/io/{orig_wheel}",
         ]
-        for exclude in excludes:
-            repair_command.extend(["--exclude", exclude])
-        repair_command.append(f"/io/{orig_wheel}")
-        output = docker_exec(manylinux_ctr, repair_command)
-
-        for exclude in excludes:
-            assert f"Excluding {exclude}" in output
+        output = docker_exec(manylinux_ctr, ["bash", "-c", " ".join(repair_command)])
+        assert "Excluding liba.so" in output
         filenames = os.listdir(io_folder)
         assert len(filenames) == 2
-        repaired_wheel = f"numpy-{NUMPY_VERSION}-{PYTHON_ABI}-{tag}.whl"
+        repaired_wheel = f"testrpath-0.0.1-{PYTHON_ABI}-{tag}.whl"
         assert repaired_wheel in filenames
 
-        # Make sure we don't have libgfortran in the result
+        # Make sure we don't have liba.so & libb.so in the result
         contents = zipfile.ZipFile(os.path.join(io_folder, repaired_wheel)).namelist()
-        assert not any(x for x in contents if "/libgfortran" in x)
+        assert not any(x for x in contents if "/liba" in x or "/libb" in x)
 
     def test_build_wheel_with_binary_executable(
         self, any_manylinux_container, docker_python, io_folder
@@ -395,26 +396,43 @@ class Anylinux:
         )
         assert output.strip() == "2.25"
 
+        # Both testprogram and testprogram_nodeps square a number, but:
+        #   * testprogram links against libgsl and had to have its RPATH
+        #     rewritten.
+        #   * testprogram_nodeps links against no shared libraries and wasn't
+        #     rewritten.
+        #
+        # Both executables should work when called from the installed bin directory.
+        assert docker_exec(docker_python, ["/usr/local/bin/testprogram", "4"]) == "16\n"
+        assert (
+            docker_exec(docker_python, ["/usr/local/bin/testprogram_nodeps", "4"])
+            == "16\n"
+        )
+
+        # testprogram should be a Python shim since we had to rewrite its RPATH.
+        assert (
+            docker_exec(docker_python, ["head", "-n1", "/usr/local/bin/testprogram"])
+            == "#!/usr/local/bin/python\n"
+        )
+
+        # testprogram_nodeps should be the unmodified ELF binary.
+        assert (
+            docker_exec(
+                docker_python, ["head", "-c4", "/usr/local/bin/testprogram_nodeps"]
+            )
+            == "\x7fELF"
+        )
+
     def test_build_repair_pure_wheel(self, any_manylinux_container, io_folder):
         policy, tag, manylinux_ctr = any_manylinux_container
 
-        if op.exists(op.join(WHEEL_CACHE_FOLDER, policy, ORIGINAL_SIX_WHEEL)):
-            # If six has already been built and put in cache, let's reuse this.
-            shutil.copy2(
-                op.join(WHEEL_CACHE_FOLDER, policy, ORIGINAL_SIX_WHEEL),
-                op.join(io_folder, ORIGINAL_SIX_WHEEL),
-            )
-            logger.info(f"Copied six wheel from {WHEEL_CACHE_FOLDER} to {io_folder}")
-        else:
-            docker_exec(manylinux_ctr, "pip wheel -w /io --no-binary=:all: six==1.11.0")
-            os.makedirs(op.join(WHEEL_CACHE_FOLDER, policy), exist_ok=True)
-            shutil.copy2(
-                op.join(io_folder, ORIGINAL_SIX_WHEEL),
-                op.join(WHEEL_CACHE_FOLDER, policy, ORIGINAL_SIX_WHEEL),
-            )
+        docker_exec(
+            manylinux_ctr,
+            "pip download --no-deps -d /io --only-binary=:all: six==1.16.0",
+        )
 
         filenames = os.listdir(io_folder)
-        assert filenames == [ORIGINAL_SIX_WHEEL]
+        assert filenames == ["six-1.16.0-py2.py3-none-any.whl"]
         orig_wheel = filenames[0]
         assert "manylinux" not in orig_wheel
 
@@ -449,7 +467,7 @@ class Anylinux:
                 (
                     "cd /auditwheel_src/tests/integration/testrpath &&"
                     "if [ -d ./build ]; then rm -rf ./build ./*.egg-info; fi && "
-                    f"DTAG={dtag} python setup.py bdist_wheel -d /io"
+                    f"DTAG={dtag} python -m pip wheel --no-deps -w /io ."
                 ),
             ],
         )
@@ -496,29 +514,33 @@ class Anylinux:
         )
         assert output.strip() == "11"
         with zipfile.ZipFile(os.path.join(io_folder, repaired_wheel)) as w:
-            for name in w.namelist():
-                if "testrpath/.libs/lib" in name:
-                    with w.open(name) as f:
-                        elf = ELFFile(io.BytesIO(f.read()))
-                        dynamic = elf.get_section_by_name(".dynamic")
-                        assert (
-                            len(
-                                [
-                                    t
-                                    for t in dynamic.iter_tags()
-                                    if t.entry.d_tag == "DT_RUNPATH"
-                                ]
-                            )
-                            == 0
-                        )
-                        if ".libs/liba" in name:
-                            rpath_tags = [
+            libraries = tuple(
+                name for name in w.namelist() if "testrpath.libs/lib" in name
+            )
+            assert len(libraries) == 2
+            assert any(".libs/liba" in name for name in libraries)
+            for name in libraries:
+                with w.open(name) as f:
+                    elf = ELFFile(io.BytesIO(f.read()))
+                    dynamic = elf.get_section_by_name(".dynamic")
+                    assert (
+                        len(
+                            [
                                 t
                                 for t in dynamic.iter_tags()
-                                if t.entry.d_tag == "DT_RPATH"
+                                if t.entry.d_tag == "DT_RUNPATH"
                             ]
-                            assert len(rpath_tags) == 1
-                            assert rpath_tags[0].rpath == "$ORIGIN/."
+                        )
+                        == 0
+                    )
+                    if ".libs/liba" in name:
+                        rpath_tags = [
+                            t
+                            for t in dynamic.iter_tags()
+                            if t.entry.d_tag == "DT_RPATH"
+                        ]
+                        assert len(rpath_tags) == 1
+                        assert rpath_tags[0].rpath == "$ORIGIN"
 
     def test_build_repair_multiple_top_level_modules_wheel(
         self, any_manylinux_container, docker_python, io_folder
@@ -791,8 +813,8 @@ class TestManylinux(Anylinux):
         """
         policy = request.param
         support_check_map = {
-            "manylinux_2_5": {"37", "38", "39"},
-            "manylinux_2_12": {"37", "38", "39", "310"},
+            "manylinux_2_5": {"38", "39"},
+            "manylinux_2_12": {"38", "39", "310"},
         }
         check_set = support_check_map.get(policy, None)
         if check_set and PYTHON_ABI_MAJ_MIN not in check_set:
@@ -828,15 +850,17 @@ class TestManylinux(Anylinux):
         #   tested.
 
         policy, tag, manylinux_ctr = any_manylinux_container
-
+        build_command = (
+            "cd /auditwheel_src/tests/integration/testdependencies && "
+            "if [ -d ./build ]; then rm -rf ./build ./*.egg-info; fi && "
+            f"WITH_DEPENDENCY={with_dependency} python -m pip wheel --no-deps -w /io ."
+        )
         docker_exec(
             manylinux_ctr,
             [
                 "bash",
                 "-c",
-                "cd /auditwheel_src/tests/integration/testdependencies && "
-                f"WITH_DEPENDENCY={with_dependency} python setup.py -v build_ext -f "
-                "bdist_wheel -d /io",
+                build_command,
             ],
         )
 
@@ -850,11 +874,12 @@ class TestManylinux(Anylinux):
             "auditwheel -v repair --plat {policy} -w /io /io/{orig_wheel}"
         )
 
-        policy_priority = get_priority_by_name(policy)
+        wheel_policy = WheelPolicies()
+        policy_priority = wheel_policy.get_priority_by_name(policy)
         older_policies = [
             f"{p}_{PLATFORM}"
             for p in MANYLINUX_IMAGES.keys()
-            if policy_priority < get_priority_by_name(f"{p}_{PLATFORM}")
+            if policy_priority < wheel_policy.get_priority_by_name(f"{p}_{PLATFORM}")
         ]
         for target_policy in older_policies:
             # we shall fail to repair the wheel when targeting an older policy than
@@ -966,7 +991,14 @@ class TestManylinux(Anylinux):
             repaired_tag = f"{expect_tag}.{target_tag}"
         repaired_wheel = f"testsimple-0.0.1-{PYTHON_ABI}-{repaired_tag}.whl"
         assert repaired_wheel in filenames
+
         assert_show_output(manylinux_ctr, repaired_wheel, expect, True)
+
+        with zipfile.ZipFile(os.path.join(io_folder, repaired_wheel)) as z:
+            for file in z.namelist():
+                assert not file.startswith(
+                    "testsimple.libs"
+                ), "should not have empty .libs folder"
 
         docker_exec(docker_python, f"pip install /io/{repaired_wheel}")
         docker_exec(
