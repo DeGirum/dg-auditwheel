@@ -18,8 +18,8 @@ def main() -> int | None:
         return 1
 
     location = pathlib.Path(dg_auditwheel.__file__).parent.resolve()
-    version = "auditwheel {} installed at {} (python {}.{})".format(
-        metadata.version("auditwheel"), location, *sys.version_info
+    version = "dg-auditwheel {} installed at {} (python {}.{})".format(
+        metadata.version("dg-auditwheel"), location, *sys.version_info
     )
 
     p = argparse.ArgumentParser(description="Cross-distro Python wheels.")
