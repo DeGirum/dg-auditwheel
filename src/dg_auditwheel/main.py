@@ -7,7 +7,7 @@ import pathlib
 import sys
 from importlib import metadata
 
-import auditwheel
+import dg_auditwheel
 
 from . import main_lddtree, main_repair, main_show
 
@@ -17,7 +17,7 @@ def main() -> int | None:
         print("Error: This tool only supports Linux")
         return 1
 
-    location = pathlib.Path(auditwheel.__file__).parent.resolve()
+    location = pathlib.Path(dg_auditwheel.__file__).parent.resolve()
     version = "auditwheel {} installed at {} (python {}.{})".format(
         metadata.version("auditwheel"), location, *sys.version_info
     )

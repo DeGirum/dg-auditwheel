@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from jsonschema import validate
 
-from auditwheel.policy import WheelPolicies, _load_policy_schema
+from dg_auditwheel.policy import WheelPolicies, _load_policy_schema
 
 
 def test_policy():

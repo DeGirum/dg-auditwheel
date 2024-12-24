@@ -6,7 +6,7 @@ import re
 import subprocess
 from typing import NamedTuple
 
-from auditwheel.error import InvalidLibc
+from dg_auditwheel.error import InvalidLibc
 
 LOG = logging.getLogger(__name__)
 

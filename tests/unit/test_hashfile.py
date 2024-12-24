@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from auditwheel.hashfile import hashfile
+from dg_auditwheel.hashfile import hashfile
 
 
 def test_hash():

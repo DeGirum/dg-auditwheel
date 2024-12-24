@@ -5,7 +5,7 @@ from unittest.mock import call, patch
 
 import pytest
 
-from auditwheel.patcher import Patchelf
+from dg_auditwheel.patcher import Patchelf
 
 
 @patch("auditwheel.patcher.which")

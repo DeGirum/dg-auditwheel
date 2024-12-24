@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from auditwheel.main import main
+from dg_auditwheel.main import main
 
 on_supported_platform = pytest.mark.skipif(
     sys.platform != "linux", reason="requires Linux system"

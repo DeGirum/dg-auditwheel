@@ -4,7 +4,7 @@ import argparse
 import logging
 from os.path import abspath, basename, exists, isfile
 
-from auditwheel.patcher import Patchelf
+from dg_auditwheel.patcher import Patchelf
 
 from .policy import WheelPolicies
 from .tools import EnvironmentDefault

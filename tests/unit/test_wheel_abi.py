@@ -5,8 +5,8 @@ import os
 import pretend
 import pytest
 
-from auditwheel import wheel_abi
-from auditwheel.policy import WheelPolicies
+from dg_auditwheel import wheel_abi
+from dg_auditwheel.policy import WheelPolicies
 
 
 class TestGetWheelElfdata:

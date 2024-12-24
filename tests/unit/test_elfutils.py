@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 from elftools.common.exceptions import ELFError
 
-from auditwheel.elfutils import (
+from dg_auditwheel.elfutils import (
     elf_file_filter,
     elf_find_ucs2_symbols,
     elf_find_versioned_symbols,

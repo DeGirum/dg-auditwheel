@@ -12,10 +12,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from auditwheel import main_repair
-from auditwheel.libc import Libc
-from auditwheel.policy import WheelPolicies
-from auditwheel.wheel_abi import analyze_wheel_abi
+from dg_auditwheel import main_repair
+from dg_auditwheel.libc import Libc
+from dg_auditwheel.policy import WheelPolicies
+from dg_auditwheel.wheel_abi import analyze_wheel_abi
 
 HERE = Path(__file__).parent.resolve()
 

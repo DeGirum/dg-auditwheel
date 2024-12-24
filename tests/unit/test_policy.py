@@ -8,9 +8,9 @@ from contextlib import nullcontext as does_not_raise
 
 import pytest
 
-from auditwheel.error import InvalidLibc
-from auditwheel.libc import Libc
-from auditwheel.policy import (
+from dg_auditwheel.error import InvalidLibc
+from dg_auditwheel.libc import Libc
+from dg_auditwheel.policy import (
     WheelPolicies,
     _validate_pep600_compliance,
     get_arch_name,

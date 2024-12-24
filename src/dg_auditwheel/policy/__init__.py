@@ -11,7 +11,7 @@ from os.path import abspath, dirname, join
 from pathlib import Path
 from typing import Any, Generator
 
-from auditwheel.elfutils import filter_undefined_symbols, is_subdir
+from dg_auditwheel.elfutils import filter_undefined_symbols, is_subdir
 
 from ..libc import Libc, get_libc
 from ..musllinux import find_musl_libc, get_musl_version

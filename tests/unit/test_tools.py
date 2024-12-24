@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from auditwheel.tools import EnvironmentDefault, dir2zip, zip2dir
+from dg_auditwheel.tools import EnvironmentDefault, dir2zip, zip2dir
 
 
 @pytest.mark.parametrize(

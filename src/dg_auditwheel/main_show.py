@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from auditwheel.policy import WheelPolicies
+from dg_auditwheel.policy import WheelPolicies
 
 logger = logging.getLogger(__name__)
 

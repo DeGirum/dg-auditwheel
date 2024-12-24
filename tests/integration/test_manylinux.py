@@ -16,7 +16,7 @@ import docker
 import pytest
 from elftools.elf.elffile import ELFFile
 
-from auditwheel.policy import WheelPolicies, get_arch_name
+from dg_auditwheel.policy import WheelPolicies, get_arch_name
 
 logger = logging.getLogger(__name__)
 

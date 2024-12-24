@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from unittest.mock import call, patch
 
-from auditwheel.patcher import Patchelf
-from auditwheel.repair import append_rpath_within_wheel
+from dg_auditwheel.patcher import Patchelf
+from dg_auditwheel.repair import append_rpath_within_wheel
 
 
 @patch("auditwheel.patcher._verify_patchelf")

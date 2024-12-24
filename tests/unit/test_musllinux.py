@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from auditwheel.error import InvalidLibc
-from auditwheel.musllinux import find_musl_libc, get_musl_version
+from dg_auditwheel.error import InvalidLibc
+from dg_auditwheel.musllinux import find_musl_libc, get_musl_version
 
 
 @patch("auditwheel.musllinux.pathlib.Path")

@@ -13,7 +13,7 @@ from pathlib import Path
 from subprocess import check_call
 from typing import Iterable
 
-from auditwheel.patcher import ElfPatcher
+from dg_auditwheel.patcher import ElfPatcher
 
 from .elfutils import elf_read_dt_needed, elf_read_rpaths, is_subdir
 from .hashfile import hashfile
